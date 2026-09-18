@@ -4,6 +4,10 @@ Desenvolvida com CustomTkinter, oferecendo suporte a temas Claro/Escuro,
 processamento assíncrono (sem travamentos), seleção de arquivos/pastas,
 formatação e alinhamento de documentos DOCX e redução inteligente de tamanho
 de arquivos (PDF, DOCX, PPTX, XLSX e Imagens) com mínima perda de conteúdo.
+
+Design orientado a controle explícito: tarefas só são executadas sob clique direto
+do usuário nos botões de execução da tela correspondente, sem execuções automáticas
+ao navegar entre abas ou módulos, com botões dedicados de limpeza de tela e campos.
 """
 
 import os
@@ -47,8 +51,11 @@ class DocxFormatterApp(ctk.CTk):
         self._build_main_area()
         self._load_config_into_ui(self.current_config)
 
+    # =========================================================================
+    # BARRA LATERAL ESQUERDA (SIDEBAR - APENAS NAVEGAÇÃO E AÇÕES GERAIS)
+    # =========================================================================
     def _build_sidebar(self):
-        """Constrói a barra lateral esquerda com ações e seleção de temas/perfis."""
+        """Constrói a barra lateral esquerda com navegação entre telas e controles gerais."""
         self.sidebar_frame = ctk.CTkFrame(self, width=240, corner_radius=0)
         self.sidebar_frame.pack(side="left", fill="y", padx=0, pady=0)
         self.sidebar_frame.pack_propagate(False)
@@ -73,41 +80,67 @@ class DocxFormatterApp(ctk.CTk):
         sep1 = ctk.CTkFrame(self.sidebar_frame, height=2, fg_color="gray30")
         sep1.pack(fill="x", padx=20, pady=(5, 10))
 
-        # Ações Rápidas
-        actions_label = ctk.CTkLabel(
+        # Seção de Navegação
+        nav_label = ctk.CTkLabel(
             self.sidebar_frame,
-            text="Ações Principais:",
+            text="Navegação / Telas:",
             font=ctk.CTkFont(size=13, weight="bold")
         )
-        actions_label.pack(padx=20, pady=(5, 5), anchor="w")
+        nav_label.pack(padx=20, pady=(5, 5), anchor="w")
 
-        # Botão Formatação DOCX
-        self.start_button = ctk.CTkButton(
+        # Botão Navegar: Formatar DOCX (apenas muda de aba, NUNCA executa automaticamente)
+        self.btn_nav_format = ctk.CTkButton(
             self.sidebar_frame,
             text="📄 Formatar DOCX",
             font=ctk.CTkFont(size=13, weight="bold"),
             fg_color="#1f6aa5",
             hover_color="#144870",
-            height=38,
-            command=self._start_processing
+            height=36,
+            command=lambda: self.tabview.set("1. Formatar DOCX")
         )
-        self.start_button.pack(padx=20, pady=6, fill="x")
+        self.btn_nav_format.pack(padx=20, pady=4, fill="x")
 
-        # Botão Redução de Tamanho
-        self.compress_sidebar_btn = ctk.CTkButton(
+        # Botão Navegar: Reduzir Tamanho (apenas muda de aba, NUNCA executa automaticamente)
+        self.btn_nav_compress = ctk.CTkButton(
             self.sidebar_frame,
             text="🗜 Reduzir Tamanho",
             font=ctk.CTkFont(size=13, weight="bold"),
             fg_color="#7b2cbf",
             hover_color="#5a189a",
-            height=38,
-            command=self._focus_and_start_compression
+            height=36,
+            command=lambda: self.tabview.set("3. Reduzir Tamanho (PDF/DOCX)")
         )
-        self.compress_sidebar_btn.pack(padx=20, pady=6, fill="x")
+        self.btn_nav_compress.pack(padx=20, pady=4, fill="x")
+
+        # Botão Navegar: Regras de Estilo
+        self.btn_nav_rules = ctk.CTkButton(
+            self.sidebar_frame,
+            text="⚙️ Regras de Estilo",
+            font=ctk.CTkFont(size=12),
+            fg_color="transparent",
+            border_width=1,
+            text_color=("gray10", "gray90"),
+            height=32,
+            command=lambda: self.tabview.set("2. Regras de Estilo")
+        )
+        self.btn_nav_rules.pack(padx=20, pady=4, fill="x")
+
+        # Botão Navegar: Relatório & Log
+        self.btn_nav_logs = ctk.CTkButton(
+            self.sidebar_frame,
+            text="📊 Relatório & Log",
+            font=ctk.CTkFont(size=12),
+            fg_color="transparent",
+            border_width=1,
+            text_color=("gray10", "gray90"),
+            height=32,
+            command=lambda: self.tabview.set("4. Execução & Relatório")
+        )
+        self.btn_nav_logs.pack(padx=20, pady=4, fill="x")
 
         # Separador 2
         sep2 = ctk.CTkFrame(self.sidebar_frame, height=2, fg_color="gray30")
-        sep2.pack(fill="x", padx=20, pady=(10, 10))
+        sep2.pack(fill="x", padx=20, pady=(12, 10))
 
         # Perfil Rápido DOCX
         preset_label = ctk.CTkLabel(
@@ -115,7 +148,7 @@ class DocxFormatterApp(ctk.CTk):
             text="Perfil Formatação DOCX:",
             font=ctk.CTkFont(size=12, weight="bold")
         )
-        preset_label.pack(padx=20, pady=(5, 4), anchor="w")
+        preset_label.pack(padx=20, pady=(2, 4), anchor="w")
 
         self.preset_combobox = ctk.CTkComboBox(
             self.sidebar_frame,
@@ -124,7 +157,20 @@ class DocxFormatterApp(ctk.CTk):
             width=200
         )
         self.preset_combobox.set("Corporativo Moderno")
-        self.preset_combobox.pack(padx=20, pady=(0, 15), anchor="w")
+        self.preset_combobox.pack(padx=20, pady=(0, 12), anchor="w")
+
+        # Botão Limpar Toda a Tela (Zera todos os campos e reset)
+        self.btn_clear_screen = ctk.CTkButton(
+            self.sidebar_frame,
+            text="🧹 Limpar Toda a Tela",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color="#c1121f",
+            hover_color="#780000",
+            text_color="white",
+            height=34,
+            command=self._clear_all_screen
+        )
+        self.btn_clear_screen.pack(padx=20, pady=(5, 6), fill="x")
 
         # Botão para abrir pasta de saída
         self.open_folder_btn = ctk.CTkButton(
@@ -133,20 +179,10 @@ class DocxFormatterApp(ctk.CTk):
             fg_color="transparent",
             border_width=1,
             text_color=("gray10", "gray90"),
+            height=32,
             command=self._open_output_directory
         )
-        self.open_folder_btn.pack(padx=20, pady=(5, 6), fill="x")
-
-        # Botão para limpar console
-        self.clear_log_btn = ctk.CTkButton(
-            self.sidebar_frame,
-            text="🧹 Limpar Mensagens",
-            fg_color="transparent",
-            border_width=1,
-            text_color=("gray10", "gray90"),
-            command=self._clear_logs
-        )
-        self.clear_log_btn.pack(padx=20, pady=(5, 15), fill="x")
+        self.open_folder_btn.pack(padx=20, pady=4, fill="x")
 
         # Espaçador vertical
         spacer = ctk.CTkLabel(self.sidebar_frame, text="")
@@ -180,18 +216,18 @@ class DocxFormatterApp(ctk.CTk):
         self._build_tab_logs()
 
     # =========================================================================
-    # ABA 1: FORMATAR DOCX
+    # ABA 1: FORMATAR DOCX (COM BOTÃO DE EXECUÇÃO MANUAL E BOTÃO DE LIMPEZA)
     # =========================================================================
     def _build_tab_format_files(self):
         tab = self.tab_format_files
 
         # Modo de operação
         mode_label = ctk.CTkLabel(tab, text="Modo de Operação (Formatação DOCX):", font=ctk.CTkFont(size=14, weight="bold"))
-        mode_label.pack(padx=20, pady=(15, 5), anchor="w")
+        mode_label.pack(padx=20, pady=(12, 4), anchor="w")
 
         self.mode_var = ctk.StringVar(value="file")
         mode_frame = ctk.CTkFrame(tab, fg_color="transparent")
-        mode_frame.pack(padx=20, pady=(0, 15), anchor="w")
+        mode_frame.pack(padx=20, pady=(0, 10), anchor="w")
 
         rb_file = ctk.CTkRadioButton(
             mode_frame, text="Documento Único (.docx)",
@@ -209,17 +245,17 @@ class DocxFormatterApp(ctk.CTk):
 
         # Caixa Origem
         source_frame = ctk.CTkFrame(tab)
-        source_frame.pack(fill="x", padx=20, pady=10)
+        source_frame.pack(fill="x", padx=20, pady=8)
 
         self.source_title = ctk.CTkLabel(
             source_frame,
             text="Documento Word de Origem (.docx):",
             font=ctk.CTkFont(size=13, weight="bold")
         )
-        self.source_title.pack(padx=15, pady=(10, 5), anchor="w")
+        self.source_title.pack(padx=15, pady=(8, 4), anchor="w")
 
         source_input_frame = ctk.CTkFrame(source_frame, fg_color="transparent")
-        source_input_frame.pack(fill="x", padx=15, pady=(0, 15))
+        source_input_frame.pack(fill="x", padx=15, pady=(0, 12))
 
         self.source_path_entry = ctk.CTkEntry(
             source_input_frame,
@@ -237,14 +273,14 @@ class DocxFormatterApp(ctk.CTk):
 
         # Caixa Destino
         dest_frame = ctk.CTkFrame(tab)
-        dest_frame.pack(fill="x", padx=20, pady=10)
+        dest_frame.pack(fill="x", padx=20, pady=8)
 
         dest_title = ctk.CTkLabel(
             dest_frame,
             text="Local de Saída:",
             font=ctk.CTkFont(size=13, weight="bold")
         )
-        dest_title.pack(padx=15, pady=(10, 5), anchor="w")
+        dest_title.pack(padx=15, pady=(8, 4), anchor="w")
 
         self.dest_mode_var = ctk.BooleanVar(value=True)
         self.cb_same_dir = ctk.CTkCheckBox(
@@ -253,10 +289,10 @@ class DocxFormatterApp(ctk.CTk):
             variable=self.dest_mode_var,
             command=self._on_dest_mode_toggle
         )
-        self.cb_same_dir.pack(padx=15, pady=(0, 10), anchor="w")
+        self.cb_same_dir.pack(padx=15, pady=(0, 8), anchor="w")
 
         self.dest_input_frame = ctk.CTkFrame(dest_frame, fg_color="transparent")
-        self.dest_input_frame.pack(fill="x", padx=15, pady=(0, 15))
+        self.dest_input_frame.pack(fill="x", padx=15, pady=(0, 12))
 
         self.dest_path_entry = ctk.CTkEntry(
             self.dest_input_frame,
@@ -274,16 +310,44 @@ class DocxFormatterApp(ctk.CTk):
         )
         self.btn_browse_dest.pack(side="right")
 
+        # Barra de Ações Dedicada (EXECUTAR e LIMPAR CAMPOS)
+        action_bar_format = ctk.CTkFrame(tab, fg_color="transparent")
+        action_bar_format.pack(fill="x", padx=20, pady=(10, 8))
+
+        self.btn_run_format = ctk.CTkButton(
+            action_bar_format,
+            text="▶ Executar Formatação DOCX",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color="#1f6aa5",
+            hover_color="#144870",
+            height=44,
+            command=self._start_processing
+        )
+        self.btn_run_format.pack(side="left", fill="x", expand=True, padx=(0, 10))
+
+        self.btn_clear_format = ctk.CTkButton(
+            action_bar_format,
+            text="🧹 Limpar Campos",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color="transparent",
+            border_width=1,
+            text_color=("gray10", "gray90"),
+            height=44,
+            width=140,
+            command=self._clear_format_fields
+        )
+        self.btn_clear_format.pack(side="right")
+
         # Cartão de Informações Rápidas
         info_card = ctk.CTkFrame(tab, fg_color=("gray90", "gray18"))
-        info_card.pack(fill="both", expand=True, padx=20, pady=15)
+        info_card.pack(fill="both", expand=True, padx=20, pady=(8, 12))
 
         info_title = ctk.CTkLabel(
             info_card,
             text="ℹ O que a padronização DOCX fará automaticamente:",
             font=ctk.CTkFont(size=13, weight="bold")
         )
-        info_title.pack(padx=15, pady=(10, 5), anchor="w")
+        info_title.pack(padx=15, pady=(8, 4), anchor="w")
 
         bullets = [
             "• Alinhamento do texto e títulos com entrelinhas e espaçamentos uniformes",
@@ -295,7 +359,7 @@ class DocxFormatterApp(ctk.CTk):
         ]
         for b in bullets:
             b_label = ctk.CTkLabel(info_card, text=b, font=ctk.CTkFont(size=12), anchor="w")
-            b_label.pack(padx=20, pady=2, anchor="w")
+            b_label.pack(padx=20, pady=1, anchor="w")
 
     # =========================================================================
     # ABA 2: REGRAS DE FORMATAÇÃO
@@ -417,7 +481,7 @@ class DocxFormatterApp(ctk.CTk):
         self.entry_m_right.grid(row=2, column=3, sticky="w", padx=15, pady=4)
 
     # =========================================================================
-    # ABA 3: REDUZIR TAMANHO (PDF, DOCX, PPTX, XLSX, IMAGENS)
+    # ABA 3: REDUZIR TAMANHO (COM BOTÃO DE EXECUÇÃO MANUAL E BOTÃO DE LIMPEZA)
     # =========================================================================
     def _build_tab_compress(self):
         tab = self.tab_compress
@@ -427,7 +491,7 @@ class DocxFormatterApp(ctk.CTk):
 
         # Cabeçalho da funcionalidade
         header_frame = ctk.CTkFrame(scroll_c, fg_color="transparent")
-        header_frame.pack(fill="x", padx=10, pady=(5, 10))
+        header_frame.pack(fill="x", padx=10, pady=(5, 8))
 
         c_title = ctk.CTkLabel(
             header_frame,
@@ -439,23 +503,23 @@ class DocxFormatterApp(ctk.CTk):
         c_desc = ctk.CTkLabel(
             header_frame,
             text="Comprime arquivos PDF, DOCX, PPTX, XLSX e Imagens com o mínimo de perda de qualidade visual.\n"
-                 "Preserva integralmente a nitidez de textos, fontes, diagramas e dados do documento.",
+                 "Garante preservação de 100% dos dados, textos, tabelas e imagens originais.",
             font=ctk.CTkFont(size=12),
             text_color="gray",
             justify="left"
         )
-        c_desc.pack(anchor="w", pady=(3, 0))
+        c_desc.pack(anchor="w", pady=(2, 0))
 
         # 1. Modo de Seleção (Único vs Lote)
         mode_box = ctk.CTkFrame(scroll_c)
         mode_box.pack(fill="x", padx=10, pady=6)
 
         lbl_c_mode = ctk.CTkLabel(mode_box, text="Modo de Redução:", font=ctk.CTkFont(size=13, weight="bold"))
-        lbl_c_mode.pack(padx=15, pady=(10, 4), anchor="w")
+        lbl_c_mode.pack(padx=15, pady=(8, 4), anchor="w")
 
         self.compress_mode_var = ctk.StringVar(value="file")
         cm_frame = ctk.CTkFrame(mode_box, fg_color="transparent")
-        cm_frame.pack(padx=15, pady=(0, 10), anchor="w")
+        cm_frame.pack(padx=15, pady=(0, 8), anchor="w")
 
         self.rb_c_file = ctk.CTkRadioButton(
             cm_frame, text="Arquivo Único (PDF, DOCX, Imagem...)",
@@ -480,10 +544,10 @@ class DocxFormatterApp(ctk.CTk):
             text="Arquivo de Origem:",
             font=ctk.CTkFont(size=13, weight="bold")
         )
-        self.lbl_c_source_title.pack(padx=15, pady=(10, 5), anchor="w")
+        self.lbl_c_source_title.pack(padx=15, pady=(8, 4), anchor="w")
 
         s_input_frame = ctk.CTkFrame(source_c_box, fg_color="transparent")
-        s_input_frame.pack(fill="x", padx=15, pady=(0, 12))
+        s_input_frame.pack(fill="x", padx=15, pady=(0, 10))
 
         self.entry_compress_source = ctk.CTkEntry(
             s_input_frame,
@@ -508,7 +572,7 @@ class DocxFormatterApp(ctk.CTk):
             text="Nível de Redução & Qualidade Visual:",
             font=ctk.CTkFont(size=13, weight="bold")
         )
-        lbl_level_title.pack(padx=15, pady=(10, 4), anchor="w")
+        lbl_level_title.pack(padx=15, pady=(8, 4), anchor="w")
 
         self.compress_level_combo = ctk.CTkComboBox(
             level_box,
@@ -527,7 +591,7 @@ class DocxFormatterApp(ctk.CTk):
             justify="left",
             wraplength=700
         )
-        self.lbl_level_desc.pack(padx=15, pady=(0, 12), anchor="w")
+        self.lbl_level_desc.pack(padx=15, pady=(0, 10), anchor="w")
 
         # 4. Destino
         dest_c_box = ctk.CTkFrame(scroll_c)
@@ -538,7 +602,7 @@ class DocxFormatterApp(ctk.CTk):
             text="Local de Gravação:",
             font=ctk.CTkFont(size=13, weight="bold")
         )
-        dest_c_title.pack(padx=15, pady=(10, 4), anchor="w")
+        dest_c_title.pack(padx=15, pady=(8, 4), anchor="w")
 
         self.compress_dest_mode_var = ctk.BooleanVar(value=True)
         self.cb_compress_same_dir = ctk.CTkCheckBox(
@@ -547,10 +611,10 @@ class DocxFormatterApp(ctk.CTk):
             variable=self.compress_dest_mode_var,
             command=self._on_compress_dest_toggle
         )
-        self.cb_compress_same_dir.pack(padx=15, pady=(0, 8), anchor="w")
+        self.cb_compress_same_dir.pack(padx=15, pady=(0, 6), anchor="w")
 
         self.compress_dest_frame = ctk.CTkFrame(dest_c_box, fg_color="transparent")
-        self.compress_dest_frame.pack(fill="x", padx=15, pady=(0, 12))
+        self.compress_dest_frame.pack(fill="x", padx=15, pady=(0, 10))
 
         self.entry_compress_dest = ctk.CTkEntry(
             self.compress_dest_frame,
@@ -568,20 +632,33 @@ class DocxFormatterApp(ctk.CTk):
         )
         self.btn_browse_compress_dest.pack(side="right")
 
-        # 5. Botão de Início da Redução
-        btn_action_frame = ctk.CTkFrame(scroll_c, fg_color="transparent")
-        btn_action_frame.pack(fill="x", padx=10, pady=10)
+        # 5. Barra de Ações Dedicada (EXECUTAR REDUÇÃO e LIMPAR CAMPOS)
+        action_bar_compress = ctk.CTkFrame(scroll_c, fg_color="transparent")
+        action_bar_compress.pack(fill="x", padx=10, pady=(10, 8))
 
         self.btn_run_compress = ctk.CTkButton(
-            btn_action_frame,
-            text="▶ Reduzir Tamanho do Arquivo Agora",
+            action_bar_compress,
+            text="▶ Executar Redução de Tamanho",
             font=ctk.CTkFont(size=15, weight="bold"),
             fg_color="#7b2cbf",
             hover_color="#5a189a",
             height=46,
             command=self._start_compression
         )
-        self.btn_run_compress.pack(fill="x")
+        self.btn_run_compress.pack(side="left", fill="x", expand=True, padx=(0, 10))
+
+        self.btn_clear_compress = ctk.CTkButton(
+            action_bar_compress,
+            text="🧹 Limpar Campos",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color="transparent",
+            border_width=1,
+            text_color=("gray10", "gray90"),
+            height=46,
+            width=140,
+            command=self._clear_compress_fields
+        )
+        self.btn_clear_compress.pack(side="right")
 
         # 6. Painel de Métricas / Resultados Visuais Rápidos
         self.metrics_card = ctk.CTkFrame(scroll_c, fg_color=("gray85", "gray15"))
@@ -649,6 +726,45 @@ class DocxFormatterApp(ctk.CTk):
         # Caixa de Log
         self.log_textbox = ctk.CTkTextbox(tab, font=ctk.CTkFont(family="Consolas", size=12))
         self.log_textbox.pack(fill="both", expand=True, padx=20, pady=(5, 15))
+
+    # =========================================================================
+    # FUNÇÕES DE LIMPEZA DE TELA E CAMPOS
+    # =========================================================================
+    def _clear_format_fields(self):
+        """Limpa os campos de seleção da aba Formatar DOCX."""
+        self.source_path_entry.delete(0, "end")
+        self.dest_path_entry.configure(state="normal")
+        self.dest_path_entry.delete(0, "end")
+        self.dest_mode_var.set(True)
+        self.dest_path_entry.configure(state="disabled")
+        self.btn_browse_dest.configure(state="disabled")
+        self.status_label.configure(text="Campos de formatação limpos.")
+
+    def _clear_compress_fields(self):
+        """Limpa os campos de seleção da aba Reduzir Tamanho."""
+        self.entry_compress_source.delete(0, "end")
+        self.entry_compress_dest.configure(state="normal")
+        self.entry_compress_dest.delete(0, "end")
+        self.compress_dest_mode_var.set(True)
+        self.entry_compress_dest.configure(state="disabled")
+        self.btn_browse_compress_dest.configure(state="disabled")
+
+        # Resetar cards de métricas
+        self.lbl_metric_orig.configure(text="--")
+        self.lbl_metric_comp.configure(text="--")
+        self.lbl_metric_pct.configure(text="-- %")
+        self.lbl_metric_saved.configure(text="--")
+        self.status_label.configure(text="Campos de redução limpos.")
+
+    def _clear_all_screen(self):
+        """Limpa completamente todos os campos de todas as abas, logs e progresso."""
+        self._clear_format_fields()
+        self._clear_compress_fields()
+        self._clear_logs()
+        self.progress_bar.set(0)
+        self.last_output_path = None
+        self.last_output_dir = None
+        self.status_label.configure(text="Tela e campos limpos com sucesso. Pronto para iniciar.")
 
     # =========================================================================
     # EVENTOS E CONTROLE DE FORMATAÇÃO DOCX
@@ -840,7 +956,7 @@ class DocxFormatterApp(ctk.CTk):
                 )
             else:
                 self.lbl_level_desc.configure(
-                    text="🔴 Qualidade 65% | Máx 1280px HD: Redução máxima para caber em limites rígidos de anexo (ex: 5MB ou 10MB no SEI/Tribunais).",
+                    text="🔴 Qualidade 68% | Máx 1400px HD: Redução máxima para caber em limites rígidos de anexo (ex: 5MB ou 10MB no SEI/Tribunais).",
                     text_color="#ff6b6b"
                 )
 
@@ -878,21 +994,17 @@ class DocxFormatterApp(ctk.CTk):
             self.entry_compress_dest.delete(0, "end")
             self.entry_compress_dest.insert(0, os.path.normpath(path))
 
-    def _focus_and_start_compression(self):
-        """Muda para a aba de compressão ou inicia se já tiver arquivo selecionado."""
-        self.tabview.set("3. Reduzir Tamanho (PDF/DOCX)")
-        source = self.entry_compress_source.get().strip()
-        if source and os.path.exists(source):
-            self._start_compression()
-
+    # =========================================================================
+    # EXECUÇÃO DE REDUÇÃO DE TAMANHO (SOMENTE SOB CLIQUE EXPLÍCITO NO BOTÃO)
+    # =========================================================================
     def _start_compression(self):
-        """Inicia a rotina de compressão em segundo plano."""
+        """Inicia a rotina de compressão SOMENTE sob clique explícito no botão Executar."""
         if self.is_processing:
             return
 
         source = self.entry_compress_source.get().strip()
         if not source or not os.path.exists(source):
-            messagebox.showwarning("Atenção", "Por favor, selecione um arquivo ou pasta válido para reduzir o tamanho!")
+            messagebox.showwarning("Atenção", "Por favor, selecione um arquivo ou pasta válido na aba Reduzir Tamanho!")
             return
 
         dest_custom = not self.compress_dest_mode_var.get()
@@ -901,8 +1013,7 @@ class DocxFormatterApp(ctk.CTk):
         self.tabview.set("4. Execução & Relatório")
         self.is_processing = True
         self.btn_run_compress.configure(state="disabled", text="⏳ Reduzindo Arquivo...")
-        self.compress_sidebar_btn.configure(state="disabled")
-        self.start_button.configure(state="disabled")
+        self.btn_run_format.configure(state="disabled")
         self.progress_bar.set(0)
         self.status_label.configure(text="Iniciando redução de tamanho...")
 
@@ -959,9 +1070,8 @@ class DocxFormatterApp(ctk.CTk):
 
     def _on_single_compression_complete(self, res: CompressionResult):
         self.is_processing = False
-        self.btn_run_compress.configure(state="normal", text="▶ Reduzir Tamanho do Arquivo Agora")
-        self.compress_sidebar_btn.configure(state="normal")
-        self.start_button.configure(state="normal")
+        self.btn_run_compress.configure(state="normal", text="▶ Executar Redução de Tamanho")
+        self.btn_run_format.configure(state="normal", text="▶ Executar Formatação DOCX")
 
         if not res.success:
             self._log(f"❌ ERRO na compressão: {res.error_message}")
@@ -991,7 +1101,7 @@ class DocxFormatterApp(ctk.CTk):
             self._log(f"  • Nota: {res.details['note']}")
         self._log(f"Salvo em: {res.output_path}\n")
 
-        # Voltar visualmente para a aba de compressão para ver os cards
+        # Voltar visualmente para a aba de compressão para exibir as métricas
         self.tabview.set("3. Reduzir Tamanho (PDF/DOCX)")
 
         messagebox.showinfo(
@@ -1016,18 +1126,16 @@ class DocxFormatterApp(ctk.CTk):
 
     def _on_compress_batch_empty(self, folder: str):
         self.is_processing = False
-        self.btn_run_compress.configure(state="normal", text="▶ Reduzir Tamanho do Arquivo Agora")
-        self.compress_sidebar_btn.configure(state="normal")
-        self.start_button.configure(state="normal")
+        self.btn_run_compress.configure(state="normal", text="▶ Executar Redução de Tamanho")
+        self.btn_run_format.configure(state="normal", text="▶ Executar Formatação DOCX")
         self.status_label.configure(text="Nenhum arquivo elegível encontrado.")
         self._log(f"Nenhum arquivo elegível (PDF, DOCX, Imagens) encontrado na pasta: {folder}")
         messagebox.showwarning("Aviso", "Nenhum arquivo suportado para redução encontrado na pasta selecionada.")
 
     def _on_compress_batch_complete(self, results: List[CompressionResult], output_dir: str):
         self.is_processing = False
-        self.btn_run_compress.configure(state="normal", text="▶ Reduzir Tamanho do Arquivo Agora")
-        self.compress_sidebar_btn.configure(state="normal")
-        self.start_button.configure(state="normal")
+        self.btn_run_compress.configure(state="normal", text="▶ Executar Redução de Tamanho")
+        self.btn_run_format.configure(state="normal", text="▶ Executar Formatação DOCX")
         self.last_output_dir = output_dir
 
         success_count = sum(1 for r in results if r.success)
@@ -1060,15 +1168,16 @@ class DocxFormatterApp(ctk.CTk):
         )
 
     # =========================================================================
-    # FLUXO DE FORMATAÇÃO DOCX EM SEGUNDO PLANO
+    # EXECUÇÃO DE FORMATAÇÃO DOCX (SOMENTE SOB CLIQUE EXPLÍCITO NO BOTÃO)
     # =========================================================================
     def _start_processing(self):
+        """Inicia a rotina de formatação SOMENTE sob clique explícito no botão Executar."""
         if self.is_processing:
             return
 
         source = self.source_path_entry.get().strip()
         if not source or not os.path.exists(source):
-            messagebox.showwarning("Atenção", "Por favor, selecione um arquivo ou pasta de origem válido para formatar!")
+            messagebox.showwarning("Atenção", "Por favor, selecione um arquivo ou pasta válido na aba Formatar DOCX!")
             return
 
         config = self._collect_config_from_ui()
@@ -1077,8 +1186,7 @@ class DocxFormatterApp(ctk.CTk):
 
         self.tabview.set("4. Execução & Relatório")
         self.is_processing = True
-        self.start_button.configure(state="disabled", text="⏳ Otimizando...")
-        self.compress_sidebar_btn.configure(state="disabled")
+        self.btn_run_format.configure(state="disabled", text="⏳ Formatando...")
         self.btn_run_compress.configure(state="disabled")
         self.progress_bar.set(0)
         self.status_label.configure(text="Iniciando formatação...")
@@ -1135,9 +1243,8 @@ class DocxFormatterApp(ctk.CTk):
 
     def _on_single_complete(self, res: ProcessResult):
         self.is_processing = False
-        self.start_button.configure(state="normal", text="📄 Formatar DOCX")
-        self.compress_sidebar_btn.configure(state="normal")
-        self.btn_run_compress.configure(state="normal")
+        self.btn_run_format.configure(state="normal", text="▶ Executar Formatação DOCX")
+        self.btn_run_compress.configure(state="normal", text="▶ Executar Redução de Tamanho")
 
         if not res.success:
             self._log(f"❌ ERRO: {res.error_message}")
@@ -1174,9 +1281,8 @@ class DocxFormatterApp(ctk.CTk):
 
     def _on_batch_empty(self, folder: str):
         self.is_processing = False
-        self.start_button.configure(state="normal", text="📄 Formatar DOCX")
-        self.compress_sidebar_btn.configure(state="normal")
-        self.btn_run_compress.configure(state="normal")
+        self.btn_run_format.configure(state="normal", text="▶ Executar Formatação DOCX")
+        self.btn_run_compress.configure(state="normal", text="▶ Executar Redução de Tamanho")
         self.status_label.configure(text="Nenhum arquivo encontrado.")
         self._log(f"Nenhum arquivo .docx elegível encontrado na pasta: {folder}")
         messagebox.showwarning("Aviso", "Nenhum arquivo .docx elegível encontrado na pasta selecionada.")
@@ -1194,9 +1300,8 @@ class DocxFormatterApp(ctk.CTk):
 
     def _on_batch_complete(self, results: list, output_dir: str):
         self.is_processing = False
-        self.start_button.configure(state="normal", text="📄 Formatar DOCX")
-        self.compress_sidebar_btn.configure(state="normal")
-        self.btn_run_compress.configure(state="normal")
+        self.btn_run_format.configure(state="normal", text="▶ Executar Formatação DOCX")
+        self.btn_run_compress.configure(state="normal", text="▶ Executar Redução de Tamanho")
         self.last_output_dir = output_dir
 
         success_count = sum(1 for r in results if r.success)
